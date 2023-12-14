@@ -1,10 +1,14 @@
 import _ from "lodash";
 
-type PStruct = {
+type ItemWeight = {
   readonly θ: number; // θ
   readonly w: number;
   readonly i: number;
   readonly d: number;
+};
+
+type User = {
+  readonly name: string;
 };
 
 export class Optimization {
@@ -16,28 +20,26 @@ export class Optimization {
    * • Item sets 𝐾𝑖
    * • Knapsack capacity C
    */
-  public onlineMCKP() {
-    // TODO: Confirm U K w v C P
-    const U = [];
-    const K: { w: number }[][] = [];
-    const w: number[][] = [];
-    const v: number[][] = [];
-    let C = 1000;
+  public onlineMCKP(U: User[], K: { v: number; w: number }[][], C: number) {
+    // const U = [];
+    // const K: { v: number; w: number }[][] = [];
+    // let C = 1000;
 
     // Definations
-    const P: PStruct[] = []; // 𝑃 ← ∅
-    const _U_ = U.length; // |𝑈|
+    const P: ItemWeight[] = []; // 𝑃 ← ∅
+    const _U_ = U.length; // |𝑈| number of user
     const picked_d: { d: number; i: number }[] = [];
 
     // Process
     for (let i = 0; i < _U_; i++) {
-      // TODO
       // 𝐷𝑖 ← dominant items of 𝐾𝑖 sorted by increasing weight
-      const Di: number[] = [];
+      const Di: { v: number; w: number }[] = K[i].sort((a, b) => a.w - b.w);
+      const v: number[] = Di.map((x) => x.v);
+      const w: number[] = Di.map((x) => x.w);
 
       for (let d = 0; d < Di.length; d++) {
         // Compute incremental values and weights (𝑣𝑖𝑑,𝑤𝑖𝑑 )
-        const incremental = this.computeIncremental(v, w, i, d);
+        const incremental = this.computeIncremental(v, w, d);
         let v_id = incremental.v_id;
         let w_id = incremental.w_id;
 
@@ -52,10 +54,10 @@ export class Optimization {
       const θ_ = this.algorithrm1(P, C, i, _U_);
 
       // Find dominant item 𝑑∗:
-      const d_ = this.findDominantItem(i, Di, P, θ_);
+      const d_ = this.findDominantItem(i, P, θ_);
 
       // Update capacity:
-      C = C - w[i][d_];
+      C = C - w[d_];
 
       // Pick item 𝑑∗
       picked_d.push({ d: d_, i });
@@ -88,21 +90,20 @@ export class Optimization {
 
   // Compute incremental values and weights (𝑣𝑖𝑑,𝑤𝑖𝑑 )
   private computeIncremental(
-    v: number[][],
-    w: number[][],
-    i: number,
+    v: number[],
+    w: number[],
     d: number
   ): { w_id: number; v_id: number } {
     if (d === 0) {
       return {
-        w_id: w[i][0],
-        v_id: v[i][0],
+        w_id: w[0],
+        v_id: v[0],
       };
     }
 
     return {
-      w_id: w[i][d] - w[i][d - 1],
-      v_id: v[i][d] - v[i][d - 1],
+      w_id: w[d] - w[d - 1],
+      v_id: v[d] - v[d - 1],
     };
   }
 
@@ -118,15 +119,10 @@ export class Optimization {
   }
 
   // Find dominant item 𝑑∗:
-  private findDominantItem(
-    i: number,
-    Di: number[],
-    P: PStruct[],
-    θ_: number
-  ): number {
+  private findDominantItem(i: number, P: ItemWeight[], θ_: number): number {
     // 𝑑∗ ← argmin𝑑 ∈𝐷𝑖{ 𝜃𝑖𝑑 | 𝜃𝑖𝑑 ≥ 𝜃∗}
     const _P = P.filter((x) => x.i === i && x.θ >= θ_);
-    if (Di.length === 0 || _P.length === 0) {
+    if (_P.length === 0) {
       return -1;
     }
 
