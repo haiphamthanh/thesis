@@ -16,5 +16,8 @@
     "scripts": {
         "compile": "tsc",
         "test": "jest --env=node --colors --coverage test"
+    },
+    "dependencies": {
+        "@types/lodash": "^4.14.202"
     }
 }
