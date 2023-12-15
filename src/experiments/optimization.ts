@@ -1,7 +1,7 @@
 import _ from "lodash";
 
 type ItemWeight = {
-  readonly θ: number; // θ
+  readonly θ: number;
   readonly w: number;
   readonly i: number;
   readonly d: number;
@@ -12,7 +12,7 @@ type User = {
 };
 
 export class Optimization {
-  constructor(message: string) {}
+  // constructor() {}
 
   /**
    *  Input:
@@ -71,21 +71,24 @@ export class Optimization {
   // Get updated efficiency threshold 𝜃∗:
   // 𝜃∗ ← A𝑙𝑔𝑜𝑟𝑖𝑡ℎ𝑚1 (𝑃,𝐶,𝑖, |𝑈 |)
   private algorithrm1(
-    past_P: PStruct[],
+    _P: ItemWeight[],
     C: number,
     i: number,
-    nU: number
+    _U_: number
   ): number {
-    const P = past_P.sort((f, s) => f.a - s.a);
-    const nP = P.length;
+    const P = _P.sort((f, s) => f.θ - s.θ);
+    const _P_ = P.length;
 
-    const listF: number[] = [];
-    for (let p = 0; p < nP; p++) {
-      listF.push(this.getF(p, P));
+    const fθ_list: { θ: number; fθp: number }[] = [];
+    for (let p = 0; p < _P_; p++) {
+      const θ = P[p].θ;
+      fθ_list.push({
+        θ,
+        fθp: this.computeEfficiencyAngleThreshold(P, p, _P_),
+      });
     }
 
-    const filterd = listF.filter((x) => x <= C / ((nP / i) * (nU - i + 1)));
-    return _.min(filterd) ?? -1;
+    return this.findEfficiencyAngleThreshold(i, fθ_list, _P_, _U_, C);
   }
 
   // Compute incremental values and weights (𝑣𝑖𝑑,𝑤𝑖𝑑 )
@@ -136,51 +139,44 @@ export class Optimization {
 
     return min.d;
   }
+
+  // Compute Efficiency Threshold
+  private computeEfficiencyAngleThreshold(
+    P: ItemWeight[],
+    p: number,
+    _P_: number
+  ): number {
+    if (p === 0) {
+      return P[p].w / _P_;
+    }
+
+    return P[p - 1].w + P[p - 1].w / _P_;
+    // const fθp = p === 0 ? P[p].w / _P_ : P[p - 1].w + P[p - 1].w / _P_;
+  }
+
+  // Find Efficiency Threshold
+  private findEfficiencyAngleThreshold(
+    i: number,
+    fθ_list: { θ: number; fθp: number }[],
+    _P_: number,
+    _U_: number,
+    C: number
+  ): number {
+    const _fθ_list = fθ_list.filter(
+      (item) => item.fθp <= C / ((_P_ / i) * (_U_ - i + 1))
+    );
+    if (_fθ_list.length === 0) {
+      return -1;
+    }
+
+    let min = _fθ_list[0];
+
+    _fθ_list.forEach((fθp) => {
+      if (fθp < min) {
+        min = fθp;
+      }
+    });
+
+    return min.θ;
+  }
 }
-
-// private getF(i: number, P: PStruct[]): number {
-//   if (i === 0) {
-//     return P[0].w / P.length;
-//   }
-
-//   return this.getF(i - 1, P) + P[i].w / P.length;
-// }
-
-// private findDominantItem(
-//   i: number,
-//   Di: number[],
-//   P: PStruct[],
-//   θ_: number
-// ): number {
-//   // const d_ = this.argMinMax(Di, θ_).argMin;
-//   const d_ = this.indexOfMin();
-
-//   const argFact =
-//     (compareFn: { (min: any, el: any): any; (max: any, el: any): any }) =>
-//     (array: any[]) =>
-//       array.map((el, idx) => [el, idx]).reduce(compareFn);
-//   const argMax = argFact((min, el) => (el[0] > min[0] ? el : min));
-//   const argMin = argFact((max, el) => (el[0] < max[0] ? el : max));
-
-//   return {
-//     argMin: argMin(array).filter((x) => x > threshold)[0] ?? -1,
-//     argMax: argMin(array)[0],
-//   };
-// }
-
-// private argMinMax(
-//   array: number[],
-//   threshold: number
-// ): { argMin: number; argMax: number } {
-//   const argFact =
-//     (compareFn: { (min: any, el: any): any; (max: any, el: any): any }) =>
-//     (array: any[]) =>
-//       array.map((el, idx) => [el, idx]).reduce(compareFn);
-//   const argMax = argFact((min, el) => (el[0] > min[0] ? el : min));
-//   const argMin = argFact((max, el) => (el[0] < max[0] ? el : max));
-
-//   return {
-//     argMin: argMin(array).filter((x) => x > threshold)[0] ?? -1,
-//     argMax: argMin(array)[0],
-//   };
-// }
