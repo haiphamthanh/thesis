@@ -1,15 +1,4 @@
-import _ from "lodash";
-
-type ItemWeight = {
-  readonly θ: number;
-  readonly w: number;
-  readonly i: number;
-  readonly d: number;
-};
-
-type User = {
-  readonly name: string;
-};
+import { ItemWeight, User } from "./define";
 
 export class Optimization {
   // constructor() {}
@@ -28,7 +17,7 @@ export class Optimization {
     // Definations
     const P: ItemWeight[] = []; // 𝑃 ← ∅
     const _U_ = U.length; // |𝑈| number of user
-    const picked_d: { d: number; i: number }[] = [];
+    const picked_d: { d: number; i: number; w: number }[] = [];
 
     // Process
     for (let i = 0; i < _U_; i++) {
@@ -52,15 +41,19 @@ export class Optimization {
 
       // Get updated efficiency threshold 𝜃∗:
       const θ_ = this.algorithrm1(P, C, i, _U_);
+      if (θ_ < 0) {
+        continue;
+      }
 
       // Find dominant item 𝑑∗:
       const d_ = this.findDominantItem(i, P, θ_);
 
       // Update capacity:
       C = C - w[d_];
+      console.log(C);
 
       // Pick item 𝑑∗
-      picked_d.push({ d: d_, i });
+      picked_d.push({ d: d_, i, w: w[d_] });
     }
 
     return picked_d;
@@ -76,19 +69,22 @@ export class Optimization {
     i: number,
     _U_: number
   ): number {
-    const P = _P.sort((f, s) => f.θ - s.θ);
+    // Sort 𝑃 by decreasing angle 𝜃𝑝
+    const P = _P.sort((f, s) => s.θ - f.θ);
     const _P_ = P.length;
 
-    const fθ_list: { θ: number; fθp: number }[] = [];
+    const fθ_list: { θ: number; fθp: number; p: number }[] = [];
     for (let p = 0; p < _P_; p++) {
       const θ = P[p].θ;
       fθ_list.push({
         θ,
-        fθp: this.computeEfficiencyAngleThreshold(P, p, _P_),
+        fθp: this.computeEfficiencyAngleThreshold(fθ_list, P, p, _P_),
+        p,
       });
     }
 
-    return this.findEfficiencyAngleThreshold(i, fθ_list, _P_, _U_, C);
+    // Return efficiency threshold 𝜃∗:
+    return this.findEfficiencyAngleThreshold(i, fθ_list, P, _U_, C);
   }
 
   // Compute incremental values and weights (𝑣𝑖𝑑,𝑤𝑖𝑑 )
@@ -141,7 +137,10 @@ export class Optimization {
   }
 
   // Compute Efficiency Threshold
+  // Code by Chat GPT: https://chat.openai.com/share/a102d25d-c699-4f86-8c82-aed1788b28e3
+  // Convert image to mathAscii: https://snip.mathpix.com/pthai076/snips/06cc121e-77d4-4e02-bd59-da4564ff7b04
   private computeEfficiencyAngleThreshold(
+    fθp: { θ: number; fθp: number; p: number }[],
     P: ItemWeight[],
     p: number,
     _P_: number
@@ -150,33 +149,62 @@ export class Optimization {
       return P[p].w / _P_;
     }
 
-    return P[p - 1].w + P[p - 1].w / _P_;
+    const value = fθp.filter((x) => x.p === p - 1)[0];
+    return value.fθp + P[p].w / _P_;
+    // return P[p - 1].w + P[p].w / _P_;
     // const fθp = p === 0 ? P[p].w / _P_ : P[p - 1].w + P[p - 1].w / _P_;
   }
 
   // Find Efficiency Threshold
+  // private findEfficiencyAngleThreshold(
+  //   i: number,
+  //   fθ_list: { θ: number; fθp: number; p: number }[],
+  //   _P_: number,
+  //   _U_: number,
+  //   C: number
+  // ): number {
+  //   const condition = C / ((_P_ / (i + 1)) * (_U_ - (i + 1) + 1));
+  //   const _fθ_list = fθ_list.filter(
+  //     (item) => item.fθp <= condition //C / ((_P_ / i) * (_U_ - i + 1 + 1))
+  //   );
+  //   if (_fθ_list.length === 0) {
+  //     return -1;
+  //   }
+
+  //   let min = _fθ_list[0];
+
+  //   _fθ_list.forEach((fθp) => {
+  //     if (fθp < min) {
+  //       min = fθp;
+  //     }
+  //   });
+
+  //   return min.θ;
+  // }
+
   private findEfficiencyAngleThreshold(
     i: number,
-    fθ_list: { θ: number; fθp: number }[],
-    _P_: number,
+    fθ_list: { θ: number; fθp: number; p: number }[],
+    P: ItemWeight[],
+    // _P_: number,
     _U_: number,
     C: number
   ): number {
-    const _fθ_list = fθ_list.filter(
-      (item) => item.fθp <= C / ((_P_ / i) * (_U_ - i + 1))
-    );
-    if (_fθ_list.length === 0) {
-      return -1;
+    // Initialize theta* to positive infinity
+    let optimalTheta = Infinity;
+
+    // Iterate over each p in P
+    for (let p = 0; p < P.length; p++) {
+      // Calculate the constraint for the current p
+      const constraint = C / ((P.length / (i + 1)) * (_U_ - (i + 1) + 1));
+
+      // Check if the constraint is satisfied
+      if (fθ_list[p].fθp <= constraint) {
+        // Update optimalTheta if the current theta_p is smaller
+        optimalTheta = Math.min(optimalTheta, P[p].θ);
+      }
     }
 
-    let min = _fθ_list[0];
-
-    _fθ_list.forEach((fθp) => {
-      if (fθp < min) {
-        min = fθp;
-      }
-    });
-
-    return min.θ;
+    return optimalTheta;
   }
 }
